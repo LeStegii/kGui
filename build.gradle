@@ -1,0 +1,195 @@
+// You should not need to edit this file directly.
+// Use repositories.gradle and dependencies.gradle instead.
+
+plugins {
+    id "java"
+    id "com.github.johnrengelman.shadow" version "7.0.0"
+}
+
+
+java {
+    sourceCompatibility = getVersionForMajor(javaSourceVersion)
+    targetCompatibility = getVersionForMajor(javaTargetVersion)
+
+    if (generateSourcesJar) {
+        withSourcesJar()
+    }
+    if (generateJavadocJar) {
+        withJavadocJar()
+    }
+}
+
+configurations {
+    internal
+    implementation.extendsFrom(internal)
+}
+
+jar {
+    from {
+        configurations.internal.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+}
+
+compileJava { options.encoding = "UTF-8" }
+javadoc { options.encoding = "UTF-8" }
+
+repositories {
+    mavenCentral()
+    maven {
+        name = "papermc-legacy"
+        url = "https://papermc.io/repo/repository/maven-public/"
+    }
+    maven {
+        name = "papermc"
+        url = "https://repo.papermc.io/repository/maven-public/"
+    }
+    maven {
+        name = "spigotmc"
+        url = "https://hub.spigotmc.org/nexus/content/repositories/snapshots/"
+    }
+    maven {
+        name = "sonatype-bungeecord"
+        url = "https://oss.sonatype.org/content/repositories/snapshots"
+    }
+    maven {
+        name "velocity"
+        url "https://nexus.velocitypowered.com/repository/maven-public/"
+    }
+    maven {
+        name = "kettlemc"
+        url = "https://repo.kettlemc.net/repository/maven-public/"
+    }
+}
+
+group projectGroup
+version pluginVersion
+
+if (spigotVersion) {
+    dependencies {
+        implementation "org.spigotmc:spigot-api:${spigotVersion}"
+    }
+}
+if (paperVersion) {
+    dependencies {
+        implementation "io.papermc.paper:paper-api:${paperVersion}"
+    }
+}
+if (paperLegacyVersion) {
+    dependencies {
+        implementation "com.destroystokyo.paper:paper-api:${paperLegacyVersion}"
+    }
+}
+if (velocityVersion) {
+    dependencies {
+        implementation "com.velocitypowered:velocity-api:${velocityVersion}"
+        annotationProcessor "com.velocitypowered:velocity-api:${velocityVersion}"
+    }
+}
+if (bungeeVersion) {
+    dependencies {
+        implementation "net.md-5:bungeecord-api:${bungeeVersion}"
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: "libs/implementation", include: "*.jar")
+    internal fileTree(dir: "libs/internal", include: "*.jar")
+    compileOnly "org.jetbrains:annotations:24.0.1"
+}
+
+if (jasklVersion && jasklImplementation) {
+    if (jasklShadow == "true") {
+        dependencies {
+            internal "io.github.almighty-satan.jaskl:jaskl-${jasklImplementation}:${jasklVersion}"
+        }
+    } else {
+        dependencies {
+            implementation "io.github.almighty-satan.jaskl:jaskl-${jasklImplementation}:${jasklVersion}"
+        }
+    }
+}
+
+if (slamsVersion && (slamsParser || slamsImplementation) ) {
+    if (slamsShadow == "true") {
+        dependencies {
+            internal "io.github.almighty-satan.slams:slams-parser-${slamsParser}:${slamsVersion}"
+            internal "io.github.almighty-satan.slams:slams-${slamsImplementation}:${slamsVersion}"
+        }
+    } else {
+        dependencies {
+            implementation "io.github.almighty-satan.slams:slams-parser-${slamsParser}:${slamsVersion}"
+            implementation "io.github.almighty-satan.slams:slams-${slamsImplementation}:${slamsVersion}"
+        }
+    }
+}
+
+if (klanguageVersion) {
+    dependencies {
+        implementation "net.kettlemc.klanguage:klanguage-core:${klanguageVersion}"
+        implementation "net.kettlemc.klanguage:klanguage-${klanguageImplementation}:${klanguageVersion}"
+        implementation 'net.kyori:adventure-text-minimessage:4.14.0'
+        implementation 'net.kyori:adventure-platform-bukkit:4.3.0'
+    }
+}
+
+if (kcommonVersion) {
+    dependencies {
+        implementation "net.kettlemc:kcommon:${kcommonVersion}"
+    }
+}
+
+// Use repositories from "repositories.gradle"
+if (file("repositories.gradle").exists()) {
+    apply from: "repositories.gradle"
+}
+
+// Use dependencies from "dependencies.gradle"
+if (file("dependencies.gradle").exists()) {
+    apply from: "dependencies.gradle"
+}
+
+processResources {
+    outputs.upToDateWhen { false }
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    from sourceSets.main.resources.srcDirs
+    include "**/*.*"
+    expand(
+            "name": pluginName,
+            "version": pluginVersion,
+            "author": pluginAuthor,
+            "description": pluginDescription,
+            "website": pluginWebsite,
+            "apiversion": pluginApiVersion,
+            "main": pluginMain
+    )
+}
+
+static JavaVersion getVersionForMajor(String version) {
+    return JavaVersion.values().find { (it.majorVersion == version) }
+}
+
+if (libby == "true") {
+
+    repositories {
+        maven {
+            name = "AlessioDP"
+            url = "https://repo.alessiodp.com/snapshots/"
+        }
+    }
+
+    dependencies {
+        implementation "com.alessiodp.libby:libby-bukkit:2.0.0-SNAPSHOT"
+    }
+
+    shadowJar {
+        // Add dependencies you want to relocate here if needed
+        dependencies {
+            include dependency("com.alessiodp.libby:libby-bukkit:2.0.0-SNAPSHOT")
+            include dependency("com.alessiodp.libby:libby-core:2.0.0-SNAPSHOT")
+        }
+
+        // Configure relocations
+        relocate 'com.alessiodp.libby', "net.kettlemc.${pluginName}.libs.com.alessiodp.libby"
+    }
+}
